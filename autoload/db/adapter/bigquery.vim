@@ -62,14 +62,14 @@ function! s:params(url) abort
   return conn_params
 endfunction
 
-function! db#adapter#bigquery#interactive(url, action) abort
-  return s:command_for_url(s:params(a:url), a:action)
+function! db#adapter#bigquery#interactive(url) abort
+  return s:command_for_url(s:params(a:url), 'query')
 endfunction
 
 function! db#adapter#bigquery#input(url, in) abort
   let out = []
-  if len(matchstr(a:in, '.sql'))
-    let out += db#adapter#bigquery#interactive(a:url, 'query')
+  if len(readfile(a:in)[0]) > 0
+    let out += db#adapter#bigquery#interactive(a:url)
     let out += ['--flagfile='.a:in]
   endif
   return out
