@@ -1,4 +1,8 @@
-let g:bq_global_ops = [
+let g:bq_default_params = {
+  \ 'use_legacy_sql': 'false',
+  \ }
+
+let g:bq_global_params = [
   \ 'api',
   \ 'api_version',
   \ 'apilog',
@@ -42,12 +46,17 @@ let g:bq_global_ops = [
   \ 'nouse_regional_endpoints',
   \ ]
 
-function! s:command_for_url(params, action) abort
+function! db#adapter#bigquery#auth_input() abort
+  return 'select 1;'
+endfunction
+
+function! s:command_for_url(url, action) abort
+  let params = db#url#parse(a:url).params
   let cmd = ['bq']
   let subcmd = [a:action]
-  for [k, v] in items(a:params)
+  for [k, v] in items(extend(g:bq_default_params, params))
     let op = '--'.k.'='.v
-    if index(g:bq_global_ops, k) >= 0
+    if index(g:bq_global_params, k) >= 0
       call add(cmd, op)
     else
       call add(subcmd, op)
@@ -56,21 +65,18 @@ function! s:command_for_url(params, action) abort
   return cmd + subcmd
 endfunction
 
-function! s:params(url) abort
-  let parsed_params = db#url#parse(a:url)
-  let conn_params = parsed_params.params
-  return conn_params
+function! db#adapter#bigquery#filter(url) abort
+  return s:command_for_url(a:url, 'query')
 endfunction
 
 function! db#adapter#bigquery#interactive(url) abort
-  return s:command_for_url(s:params(a:url), 'query')
+  return s:command_for_url(a:url, 'query')
 endfunction
 
-function! db#adapter#bigquery#input(url, in) abort
-  let out = []
-  if len(readfile(a:in)[0]) > 0
-    let out += db#adapter#bigquery#interactive(a:url)
-    let out += ['--flagfile='.a:in]
-  endif
-  return out
+function! db#adapter#bigquery#complete_database(url) abort
+  let pre = matchstr(a:url, '[^:]\+://.\{-\}/')
+  let cmd = s:command_for_url(pre, 'ls')
+  let out = db#systemlist(cmd)
+  return out[2:]
 endfunction
+
